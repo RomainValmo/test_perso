@@ -1,0 +1,21 @@
+{
+  "name": "test-vulnerable-project",
+  "version": "1.0.0",
+  "description": "A test project containing packages from the malicious list",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "02-echo": "0.0.7",
+    "ai-crowl-shield": "1.0.7",
+    "discord-bot-server": "0.1.2"
+  },
+  "devDependencies": {
+    "electron-volt": "0.0.2",
+    "typescript": "^5.3.3"
+  },
+  "author": "",
+  "license": "ISC"
+}
