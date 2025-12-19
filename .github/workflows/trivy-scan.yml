@@ -1,0 +1,86 @@
+name: Trivy Security Scan
+
+on:
+  # Exécution quotidienne à 2h du matin
+  schedule:
+    - cron: '0 2 * * *'
+  
+  # Déclenchement manuel depuis l'interface GitHub
+  workflow_dispatch:
+  
+  # Optionnel: sur push sur les branches principales
+  push:
+    branches:
+      - main
+      - master
+      - develop
+
+permissions:
+  contents: read
+
+jobs:
+  trivy-scan:
+    name: Run Trivy Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'json'
+          output: 'trivy-results.json'
+          severity: 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'
+          # Scan des fichiers de dépendances
+          scanners: 'vuln,secret,config'
+      
+      - name: Generate SBOM with all dependencies
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'json'
+          output: 'sbom.json'
+          # Liste toutes les dépendances (directes et transitives)
+          list-all-pkgs: true
+          scanners: 'vuln'
+      
+      - name: Add scan metadata
+        run: |
+          # Ajouter des métadonnées au résultat
+          cat > metadata.json <<EOF
+          {
+            "repository": "$GITHUB_REPOSITORY",
+            "branch": "$GITHUB_REF_NAME",
+            "commit": "$GITHUB_SHA",
+            "run_id": "$GITHUB_RUN_ID",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          EOF
+      
+      - name: Upload Trivy results as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-results
+          path: |
+            trivy-results.json
+            sbom.json
+            metadata.json
+          retention-days: 90
+          if-no-files-found: error
+      
+      - name: Display summary
+        if: always()
+        run: |
+          if [ -f trivy-results.json ]; then
+            echo "## Trivy Scan Summary" >> $GITHUB_STEP_SUMMARY
+            echo "✅ Vulnerability scan completed" >> $GITHUB_STEP_SUMMARY
+            echo "✅ SBOM generated with all dependencies" >> $GITHUB_STEP_SUMMARY
+            echo "📦 Results uploaded as artifact" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Scan failed" >> $GITHUB_STEP_SUMMARY
+          fi
